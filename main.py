@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 import os
 from datetime import datetime
 from pprint import pprint
+import json
 
 # .env 파일 로드
 load_dotenv()
@@ -60,8 +61,6 @@ load_dotenv()
 # }
 
 
-
-today = datetime.today().strftime("%Y년 %m월 %d일")
 # result = llm.answer(
 #     "당신은 12간지 운세를 아주 정교하게 해석하는 운세 전문가입니다.",
 #     f"오늘은 {today}입니다. 쥐띠(rat)에 대해 오늘의 전체적인 해석과 각 출생 연도별 간단 운세를 포함한 JSON을 만들어 주세요",
@@ -78,49 +77,189 @@ today = datetime.today().strftime("%Y년 %m월 %d일")
 #     """
 #     )
 
-result = llm.answer(
-    "당신은 12간지 운세를 아주 정교하게 해석하는 운세 전문가입니다.",
-    f"""
-    오늘은 {today}입니다. 쥐띠(rat)에 대해 오늘의 전체적인 해석과 각 출생 연도별 간단 운세를 포함한 JSON을 만들어 주세요.
+# result = llm.answer(
+#     "당신은 12간지 운세를 아주 정교하게 해석하는 운세 전문가입니다.",
+#     f"""
+#     오늘은 {today}입니다. 쥐띠(rat)에 대해 오늘의 전체적인 해석과 각 출생 연도별 간단 운세를 포함한 JSON을 만들어 주세요.
 
-    "interpretation" 항목은 그날의 간지(천간지지)의 오행과 해당 띠(지지)의 오행을 비교하여 길흉을 분석한 요약입니다.
+#     "interpretation" 항목은 그날의 간지(천간지지)의 오행과 해당 띠(지지)의 오행을 비교하여 길흉을 분석한 요약입니다.
 
+#     반드시 아래 순서로 작성해 주세요:
+#     1. 오늘의 간지(예: 乙卯)의 오행 설명 (ex: 오늘은 목(木)의 기운이 강한 날입니다)
+#     2. 해당 띠의 오행 설명 (ex: 쥐띠는 물(水)의 기운을 가지고 있습니다)
+#     3. 오늘의 기운과 띠의 기운의 관계 (ex: 물은 나무를 도와주는 성질을 가지고 있어 오늘은 쥐띠에게 유리한 날입니다)
+#     4. 종합 길흉 해석 (ex: 오늘은 좋은 흐름 속에서 기회를 잡기 좋은 날입니다)
+
+#     예시:
+#     "오늘은 나무(木)의 기운이 강한 날입니다. 쥐띠는 물(水)의 기운을 지녔으며, 물은 나무를 키우는 상생 관계에 해당합니다. 따라서 오늘은 쥐띠에게 긍정적인 에너지가 흐르고, 주변으로부터 인정받거나 기회를 얻기 좋은 날입니다."
+#     """,
+#     """
+#     ```json
+#     {{
+#         "rat": {{
+#             "interpretation": "띠 공통 해석",
+#             "luck_score": 숫자 (0~100),
+#             "advice": "한 줄 조언",
+#             "lucky_item": "행운 아이템",
+#             "lucky_color": "행운 색상",
+#             "good_time": "좋은 시간대",
+#             "love": "연애운",
+#             "money": "재물운",
+#             "relation": "인간관계",
+#             "warning": "주의할 점",
+#             "content": {{
+#                 "1996": "운세 내용",
+#                 "1984": "운세 내용",
+#                 "1972": "운세 내용",
+#                 "1960": "운세 내용",
+#                 "1948": "운세 내용"
+#             }}
+#         }}
+#     }} 
+#     """
+# )
+
+
+def build_zodiac_prompt(today: str, zodiac_en: str, zodiac_kr: str, years: list[str]) -> tuple[str, str]:
+    
+    system = "당신은 12간지 운세를 아주 정교하게 해석하고 길흉을 매우 솔직하게 풀이하는 운세 전문가입니다."
+    
+    prompt = f"""
+    오늘은 {today}입니다. {zodiac_kr}에 대해 오늘의 전체적인 해석과 각 출생 연도별 간단 운세를 포함한 JSON을 만들어 주세요.
+
+    - interpretation 항목은 그날의 간지(천간지지)의 오행과 해당 띠(지지)의 오행을 비교하여 길흉을 분석한 요약입니다.
+    
     반드시 아래 순서로 작성해 주세요:
-    1. 오늘의 간지(예: 乙卯)의 오행 설명 (ex: 오늘은 목(木)의 기운이 강한 날입니다)
-    2. 해당 띠의 오행 설명 (ex: 쥐띠는 물(水)의 기운을 가지고 있습니다)
-    3. 오늘의 기운과 띠의 기운의 관계 (ex: 물은 나무를 도와주는 성질을 가지고 있어 오늘은 쥐띠에게 유리한 날입니다)
-    4. 종합 길흉 해석 (ex: 오늘은 좋은 흐름 속에서 기회를 잡기 좋은 날입니다)
+    - 오늘의 간지(예: 乙卯)의 오행 설명
+    - 해당 띠의 오행 설명
+    - 오늘의 기운과 띠의 기운의 관계
+    - 종합 길흉 해석
+    - 길흉이 상반되는 경우에도 솔직하게 해석해 주세요.
 
-    예시:
-    "오늘은 나무(木)의 기운이 강한 날입니다. 쥐띠는 물(水)의 기운을 지녔으며, 물은 나무를 키우는 상생 관계에 해당합니다. 따라서 오늘은 쥐띠에게 긍정적인 에너지가 흐르고, 주변으로부터 인정받거나 기회를 얻기 좋은 날입니다."
-    """,
+    그리고 그 외 항목들도 모두 '{zodiac_kr} 전체'를 위한 내용으로 작성해주세요:
+
+    - luck_score: 숫자 (0~100)
+    - advice: {zodiac_kr}에게 오늘 필요한 한 줄 조언
+    - lucky_item: 오늘 {zodiac_kr}에게 도움이 되는 아이템
+    - lucky_color: 기운을 북돋는 색상
+    - good_time: 운이 트이는 시간대 (예: "오전 9시 ~ 11시")
+
+    오늘의 기운과 해당 띠의 오행 관계를 기반으로,
+    운이 나쁠 경우에도 솔직하게 해석해 주세요.
+    
     """
+    
+    year_json = ",\n                ".join([f'"{year}": "운세 내용"' for year in years])
+    
+    format = f"""
     ```json
     {{
-        "rat": {{
-            "interpretation": "띠 공통 해석",
+        "{zodiac_en}": {{
+            "interpretation": "해석",
             "luck_score": 숫자 (0~100),
             "advice": "한 줄 조언",
-            "lucky_item": "행운 아이템",
-            "lucky_color": "행운 색상",
+            "lucky_item": "행운의 아이템",
+            "lucky_color": "행운의 색상",
             "good_time": "좋은 시간대",
-            "love": "연애운",
-            "money": "재물운",
-            "relation": "인간관계",
-            "warning": "주의할 점",
             "content": {{
-                "1996": "운세 내용",
-                "1984": "운세 내용",
-                "1972": "운세 내용",
-                "1960": "운세 내용",
-                "1948": "운세 내용"
+                {year_json}
             }}
         }}
     }} 
     """
-)
+    return system.strip(), prompt.strip(), format.strip()
 
-pprint(result)
+
+today = datetime.today().strftime("%Y년 %m월 %d일")
+
+zodiac_years = {
+    "rat": {
+        "korean_lang": "쥐띠",
+        "years": [1996, 1984, 1972, 1960, 1948]
+    },
+    "ox": {
+        "korean_lang": "소띠",
+        "years": [1997, 1985, 1973, 1961, 1949]
+    },
+    "tiger": {
+        "korean_lang": "호랑이띠",
+        "years": [1998, 1986, 1974, 1962, 1950]
+    },
+    "rabbit": {
+        "korean_lang": "토끼띠",
+        "years": [1999, 1987, 1975, 1963, 1951]
+    },
+    "dragon": {
+        "korean_lang": "용띠",
+        "years": [2000, 1988, 1976, 1964, 1952]
+    },
+    "snake": {
+        "korean_lang": "뱀띠",
+        "years": [2001, 1989, 1977, 1965, 1953]
+    }
+    # "horse": {
+    #     "korean_lang": "말띠",
+    #     "years": [2002, 1990, 1978, 1966, 1954]
+    # },
+    # "goat": {
+    #     "korean_lang": "양띠",
+    #     "years": [2003, 1991, 1979, 1967, 1955]
+    # },
+    # "monkey": {
+    #     "korean_lang": "원숭이띠",
+    #     "years": [2004, 1992, 1980, 1968, 1956]
+    # },
+    # "rooster": {
+    #     "korean_lang": "닭띠",
+    #     "years": [2005, 1993, 1981, 1969, 1957]
+    # },
+    # "dog": {
+    #     "korean_lang": "개띠",
+    #     "years": [2006, 1994, 1982, 1970, 1958]
+    # },
+    # "pig": {
+    #     "korean_lang": "돼지띠",
+    #     "years": [2007, 1995, 1983, 1971, 1959]
+    # }
+}
+
+results = {
+    "date": today,
+    "horoscope": {
+        "chinese_zodiac": {
+            
+        }
+    }
+}
+
+for zodiac_en, data in zodiac_years.items():
+    zodiac_kr = data["korean_lang"]
+    years = data["years"]
+
+    system, prompt, format = build_zodiac_prompt(today, zodiac_en, zodiac_kr, years)
+
+    print("system", system)
+    print("prompt", prompt)
+    print("format", format)
+
+    response = llm.answer(system, prompt, format)
+
+    # JSON 문자열 파싱
+    try:
+        results["horoscope"]["chinese_zodiac"].update(response)  # {"pig": {...}}를 results에 추가
+    except json.JSONDecodeError:
+        print(f"[ERROR] {zodiac_en} 응답 JSON 파싱 실패")
+
+
+
+filename = f"horoscope_{today.replace('-', '')}.json"
+
+with open(filename, "w", encoding="utf-8") as f:
+    json.dump(results, f, indent=2, ensure_ascii=False)
+
+print(f"✅ 결과가 파일로 저장되었습니다: {filename}")
+
+
 
 
 

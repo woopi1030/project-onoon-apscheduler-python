@@ -7,6 +7,8 @@ import os
 
 from core import global_constants
 
+import textwrap
+
 #variables
 exchange_rate = 0.0
 
@@ -55,29 +57,34 @@ def calculate_cost(usage, model="gpt-4o-mini"):
     print(f"##### Total costs : {total_cost * exchange_rate:.2f} 원")
     print("#####")
 
+
 #  OpenAI API를 사용해 질문에 대한 답변을 생성합니다.
-def answer(role, prompt,  format='json', llm='gpt-4o-mini', output='json'):
+def answer(role, prompt, format, llm='gpt-4o-mini', output='json'):
+    
     
     api_key = os.getenv("LLM_API_KEY")
-    print("LLM_API_KEY:", api_key)
-        
     openai.api_key = api_key
+
+    # API 키가 설정되어 있는지 확인
+    dedented_role = textwrap.dedent(role).strip()
+    dedented_prompt = textwrap.dedent(prompt).strip()
+    dedented_format = textwrap.dedent(format).strip()
 
     response = openai.chat.completions.create(
         model=global_constants.LLM_MODEL,
         messages=[
             {
                 'role': 'system',
-                'content': role
+                'content': dedented_role
             },
             {
                 'role': 'user',
                 'content': f'''
-                {prompt}
+                {dedented_prompt}
 
                 JSON을 만들어 주세요.
                 JSON 구조는 아래와 같아야 합니다:
-                {format}
+                {dedented_format}
                 '''
             }
         ],
@@ -86,54 +93,15 @@ def answer(role, prompt,  format='json', llm='gpt-4o-mini', output='json'):
         temperature=0,   # 창의적인 응답여부, 값이 클수록 확률에 기반한 창의적인 응답이 생성됨
         response_format= { "type":"json_object" }
     )
-
-    # if output.lower() == 'json':
-    #   response = openai.chat.completions.create(
-    #       model='gpt-4o-mini',
-    #       messages=[
-    #           {
-    #               'role': 'system',
-    #               'content': role
-    #           },
-    #           {
-    #               'role': 'user',
-    #               'content': prompt + '\n\n출력 형식(json): ' + format
-    #           }
-    #       ],
-    #       n=1,             # 응답수, 다양한 응답 생성 가능
-    #       max_tokens=1000, # 응답 생성시 최대 1000개의 단어 사용
-    #       temperature=0,   # 창의적인 응답여부, 값이 클수록 확률에 기반한 창의적인 응답이 생성됨
-    #       response_format= { "type":"json_object" }
-    #   )
-    # else:
-    #   response = openai.chat.completions.create(
-    #       model=llm,
-    #       messages=[
-    #           {
-    #               'role': 'system',
-    #               'content': role
-    #           },
-    #           {
-    #               'role': 'user',
-    #               'content': prompt
-    #           }
-    #       ],
-    #       n=1,             # 응답수, 다양한 응답 생성 가능
-    #       max_tokens=1000, # 응답 생성시 최대 1000개의 단어 사용
-    #       temperature=0    # 창의적인 응답여부, 값이 클수록 확률에 기반한 창의적인 응답이 생성됨
-    #   )
-      
     
     # 계산 출력
     calculate_cost(response.usage, model="gpt-4o-mini")
     
-    pprint(response.choices[0].message.content)
     return json.loads(response.choices[0].message.content) # str -> json
   
+
 # 문자열에서 빈 줄을 제거한 후 다시 합쳐서 반환.
 def remove_empty_lines(text):
     lines = [line for line in text.splitlines() if line.strip()]
     result = '\n'.join(lines)
     return result
-
-# print('##### LLM Model : ', global_constants.LLM_MODEL)

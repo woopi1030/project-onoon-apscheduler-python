@@ -5,7 +5,7 @@ import json
 import time
 import os
 
-from llm import get_daily_horoscope, clean_json_response
+from llm_sample_test import get_daily_horoscope, clean_json_response
 
 
 def my_batch_job():
