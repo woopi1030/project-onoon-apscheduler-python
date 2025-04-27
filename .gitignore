@@ -130,6 +130,7 @@ celerybeat.pid
 # Environments
 .env
 .venv
+_venv/
 env/
 venv/
 ENV/
@@ -174,3 +175,6 @@ cython_debug/
 .pypirc
 
 /logs
+
+# 운세 결과 json 파일
+result_files
