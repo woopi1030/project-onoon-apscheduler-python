@@ -315,40 +315,43 @@ def build_zodiac_prompt(today: str) -> tuple[str, str, str]:
     """
     return system.strip(), prompt.strip(), format.strip()
 
-today = datetime.today().strftime("%Y년 %m월 %d일")
 
-results = {
-    "date": today,
-    "horoscope": {
-        "chinese_zodiac": {
-            
+def save_results_to_file():
+    # 결과 세팅
+    today = datetime.today().strftime("%Y-%m-%d")
+    results = {
+        "date": today,
+        "horoscope": {
+            "chinese_zodiac": {
+                
+            }
         }
     }
-}
 
-# 2
-system, prompt, format = build_zodiac_prompt(today)
+    # 2
+    today = datetime.today().strftime("%Y년 %m월 %d일")
+    system, prompt, format = build_zodiac_prompt(today)
 
-print("system", system)
-print("prompt", prompt)
-print("format", format)
+    print("system", system)
+    print("prompt", prompt)
+    print("format", format)
 
-response = llm.answer(system, prompt, format)
+    response = llm.answer(system, prompt, format)
 
-# JSON 문자열 파싱
-try:
-    results["horoscope"]["chinese_zodiac"].update(response)  # {"pig": {...}}를 results에 추가
-except json.JSONDecodeError:
-    print(f"[ERROR] 응답 JSON 파싱 실패")
+    # JSON 문자열 파싱
+    try:
+        results["horoscope"]["chinese_zodiac"].update(response)  # {"pig": {...}}를 results에 추가
+    except json.JSONDecodeError:
+        print(f"[ERROR] 응답 JSON 파싱 실패")
 
+    # 파일로 저장
 
+    filename = f"result_files/horoscope_{today.replace('-', '')}.json"
 
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(results, f, indent=2, ensure_ascii=False)
 
-# 파일로 저장
-filename = f"result_files/horoscope_{today.replace('-', '')}.json"
+    print(f"✅ 결과가 파일로 저장되었습니다: {filename}")
 
-with open(filename, "w", encoding="utf-8") as f:
-    json.dump(results, f, indent=2, ensure_ascii=False)
-
-print(f"✅ 결과가 파일로 저장되었습니다: {filename}")
+    return results
 
