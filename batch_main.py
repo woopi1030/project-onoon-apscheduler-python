@@ -65,14 +65,13 @@ scheduler = BlockingScheduler()
 
 # 매일 오전 0시 1분에 실행
 # 배치를 재시도 래퍼로 감싸서 등록
-scheduler.add_job(lambda: with_retry(my_batch_job), CronTrigger(hour=22, minute=14), id='create_horoscope_job')
+scheduler.add_job(lambda: with_retry(my_batch_job), CronTrigger(hour=0, minute=1), id='create_horoscope_job')
 
 # 매 5초마다 실행
 # scheduler.add_job(my_batch_job, 'interval', seconds=5, id='interval_job')
 
 # job 상태 저장하는 job 등록 (10초마다)
 scheduler.add_job(lambda: save_jobs_to_json(scheduler), 'interval', seconds=10, id='job_logger')
-
 
 try:
     scheduler.start()
